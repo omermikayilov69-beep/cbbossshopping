@@ -1,0 +1,6 @@
+{
+  "name": "CBBOSS SHOP",
+  "description": "Premium multi-device e-commerce store with real-time Firebase Firestore cloud catalog and admin inventory management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,165 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A store product catalog item in CBBOSS SHOP",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique document identifier for the product"
+        },
+        "name": {
+          "type": "string",
+          "description": "Product title in Turkish / brand format",
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the product",
+          "maxLength": 2000
+        },
+        "price": {
+          "type": "number",
+          "description": "Product price in TRY / USD"
+        },
+        "category": {
+          "type": "string",
+          "description": "Product category in Turkish",
+          "maxLength": 60
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the product image",
+          "maxLength": 2048
+        },
+        "stock": {
+          "type": "number",
+          "description": "Available stock quantity"
+        },
+        "badge": {
+          "type": "string",
+          "description": "Optional badge label e.g. YENİ, POPÜLER, İNDİRİM, SINIRLI SAYIDA",
+          "maxLength": 40
+        },
+        "rating": {
+          "type": "number",
+          "description": "Average review rating"
+        },
+        "ratingCount": {
+          "type": "number",
+          "description": "Total review count"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        },
+        "creatorUid": {
+          "type": "string",
+          "description": "UID of administrator who created or modified the product",
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "name",
+        "price",
+        "category",
+        "imageUrl",
+        "stock",
+        "createdAt",
+        "updatedAt",
+        "creatorUid"
+      ]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase order requiring admin verification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 100 },
+        "customerEmailMasked": { "type": "string", "maxLength": 100 },
+        "totalAmount": { "type": "number" },
+        "status": {
+          "type": "string",
+          "enum": ["Ödeme Bekleniyor", "Beklemede", "Onaylandı", "Teslim Edildi", "Tamamlandı", "İptal Edildi"]
+        },
+        "robloxUsername": { "type": "string", "maxLength": 60 },
+        "robloxNote": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["userId", "customerName", "totalAmount", "status", "createdAt", "updatedAt"]
+    },
+    "ChatConversation": {
+      "title": "ChatConversation",
+      "description": "Real-time support chat between a customer and the administrator",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 100 },
+        "customerEmailMasked": { "type": "string", "maxLength": 100 },
+        "lastMessage": { "type": "string", "maxLength": 1000 },
+        "lastMessageTime": { "type": "string", "maxLength": 50 },
+        "unreadCountAdmin": { "type": "number" },
+        "unreadCountCustomer": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "resolved"] },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["userId", "customerName", "status", "updatedAt"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Store-wide banner announcement and promotions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 120 },
+        "message": { "type": "string", "maxLength": 500 },
+        "linkUrl": { "type": "string", "maxLength": 2048 },
+        "linkText": { "type": "string", "maxLength": 60 },
+        "isActive": { "type": "boolean" },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["title", "message", "isActive", "updatedAt"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Administrator authorized for product catalog modifications",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 200 },
+        "role": { "type": "string", "enum": ["admin"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Live real-time product catalog accessible to all store visitors for read, and admin-only for writes."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders: readable by owner and admin, created by owner, updated by admin."
+    },
+    "/chats/{chatId}": {
+      "schema": "ChatConversation",
+      "description": "Private real-time live support chat between customer and store admin."
+    },
+    "/announcements/{id}": {
+      "schema": "Announcement",
+      "description": "Store banners and promotions, publicly readable, admin editable."
+    },
+    "/admins/{uid}": {
+      "schema": "Admin",
+      "description": "Authorized administrator records."
+    }
+  }
+}

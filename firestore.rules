@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global hardened helpers
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email_verified == true && (
+        request.auth.token.email == 'omermikayilov69@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'price', 'category', 'imageUrl', 'stock', 'createdAt', 'updatedAt', 'creatorUid'])
+        && data.keys().hasOnly(['id', 'name', 'description', 'price', 'category', 'imageUrl', 'stock', 'badge', 'rating', 'ratingCount', 'createdAt', 'updatedAt', 'creatorUid'])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 120
+        && (!('description' in data) || (data.description is string && data.description.size() <= 2000))
+        && (data.price is number && data.price >= 0)
+        && data.category is string && data.category.size() > 0 && data.category.size() <= 60
+        && data.imageUrl is string && data.imageUrl.size() > 0 && data.imageUrl.size() <= 2048
+        && (data.stock is number && data.stock >= 0)
+        && (!('badge' in data) || (data.badge is string && data.badge.size() <= 40))
+        && (!('rating' in data) || (data.rating is number && data.rating >= 0 && data.rating <= 5))
+        && (!('ratingCount' in data) || (data.ratingCount is number && data.ratingCount >= 0))
+        && data.createdAt is string && data.createdAt.size() <= 50
+        && data.updatedAt is string && data.updatedAt.size() <= 50
+        && data.creatorUid is string && data.creatorUid.size() <= 128;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['userId', 'customerName', 'totalAmount', 'status', 'createdAt', 'updatedAt'])
+        && data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128
+        && data.customerName is string && data.customerName.size() > 0 && data.customerName.size() <= 100
+        && (!('customerEmailMasked' in data) || (data.customerEmailMasked is string && data.customerEmailMasked.size() <= 100))
+        && (data.totalAmount is number && data.totalAmount >= 0)
+        && data.status in ['Ödeme Bekleniyor', 'Beklemede', 'Onaylandı', 'Teslim Edildi', 'Tamamlandı', 'İptal Edildi']
+        && (!('robloxUsername' in data) || (data.robloxUsername is string && data.robloxUsername.size() <= 60))
+        && (!('robloxNote' in data) || (data.robloxNote is string && data.robloxNote.size() <= 500))
+        && data.createdAt is string && data.createdAt.size() <= 50
+        && data.updatedAt is string && data.updatedAt.size() <= 50;
+    }
+
+    function isValidChat(data) {
+      return data.keys().hasAll(['userId', 'customerName', 'status', 'updatedAt'])
+        && data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128
+        && data.customerName is string && data.customerName.size() > 0 && data.customerName.size() <= 100
+        && data.status in ['active', 'resolved']
+        && (!('lastMessage' in data) || (data.lastMessage is string && data.lastMessage.size() <= 1000))
+        && data.updatedAt is string && data.updatedAt.size() <= 50;
+    }
+
+    function isValidAnnouncement(data) {
+      return data.keys().hasAll(['title', 'message', 'isActive', 'updatedAt'])
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 120
+        && data.message is string && data.message.size() > 0 && data.message.size() <= 500
+        && data.isActive is bool
+        && (!('linkUrl' in data) || (data.linkUrl is string && data.linkUrl.size() <= 2048))
+        && (!('linkText' in data) || (data.linkText is string && data.linkText.size() <= 60))
+        && data.updatedAt is string && data.updatedAt.size() <= 50;
+    }
+
+    // 1. Products catalog: Public read for all devices and visitors; admin-only writes
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isValidId(productId) && isAdmin() && isValidProduct(incoming()) && incoming().creatorUid == request.auth.uid;
+      allow update: if isValidId(productId) && isAdmin() && isValidProduct(incoming());
+      allow delete: if isValidId(productId) && isAdmin();
+    }
+
+    // 2. Orders: Customers read their own; admin reads and updates all
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(orderId) && incoming().userId == request.auth.uid && isValidOrder(incoming());
+      allow update: if isValidId(orderId) && isAdmin() && isValidOrder(incoming());
+      allow delete: if isValidId(orderId) && isAdmin();
+    }
+
+    // 3. Support Chats: Customer reads/writes own chat; admin reads/writes all
+    match /chats/{chatId} {
+      allow read: if isSignedIn() && (chatId == request.auth.uid || resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(chatId) && (chatId == request.auth.uid || isAdmin()) && isValidChat(incoming());
+      allow update: if isSignedIn() && isValidId(chatId) && (chatId == request.auth.uid || resource.data.userId == request.auth.uid || isAdmin()) && isValidChat(incoming());
+      allow delete: if isValidId(chatId) && isAdmin();
+    }
+
+    // 4. Announcements / Banners: Public read; admin write
+    match /announcements/{id} {
+      allow read: if true;
+      allow create, update: if isValidId(id) && isAdmin() && isValidAnnouncement(incoming());
+      allow delete: if isValidId(id) && isAdmin();
+    }
+
+    // 5. Admin authorization collection
+    match /admins/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
